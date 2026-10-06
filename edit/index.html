@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Modifier les textes — Gaïa Trajectoire</title>
+<style>
+:root{--bg:#f4f1ea;--surface:#fbf9f4;--ink:#1f2d24;--muted:#5b6b60;--accent:#3f6b4f;--line:rgba(31,45,36,.16);--warn:#a4452c}
+@media (prefers-color-scheme:dark){:root{--bg:#141a16;--surface:#1b231e;--ink:#eef1ec;--muted:#a3b0a6;--accent:#8fbf9c;--line:rgba(238,241,236,.18);--warn:#e8947c}}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.55;padding:24px 16px 120px}
+.box{max-width:760px;margin:0 auto}
+h1{font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:clamp(1.7rem,4vw,2.3rem);margin:8px 0 6px}
+h2{font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:1.3rem;margin:36px 0 12px;padding-top:20px;border-top:1px solid var(--line)}
+.muted{color:var(--muted);font-size:.95rem}
+a{color:var(--accent)}
+label{display:block;font-size:.82rem;letter-spacing:.04em;color:var(--muted);margin:16px 0 6px}
+textarea,input[type=password]{width:100%;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+textarea{resize:vertical;min-height:48px}
+textarea:focus,input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.field.changed textarea{border-color:var(--accent)}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+button{font:inherit;font-weight:600;cursor:pointer;border-radius:999px;padding:12px 26px;border:1px solid var(--accent);background:var(--accent);color:var(--bg)}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line);font-weight:500;padding:6px 14px;font-size:.82rem}
+button:disabled{opacity:.5;cursor:default}
+.bar{position:fixed;left:0;right:0;bottom:0;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:12px 16px}
+.bar .box{display:flex;justify-content:space-between;align-items:center;gap:12px}
+#msg{font-size:.92rem}
+#msg.err{color:var(--warn)}
+#login{max-width:420px;margin:12vh auto 0}
+#login .row{margin-top:16px}
+[hidden]{display:none!important}
+.tip{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:18px 0 0;font-size:.9rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="box">
+
+<form id="login" autocomplete="off">
+<h1>Modifier les textes</h1>
+<p class="muted">Accès réservé. Entrez le mot de passe.</p>
+<label for="pw">Mot de passe</label>
+<input id="pw" type="password" autocomplete="current-password" required>
+<div class="row"><button type="submit">Se connecter</button><span id="loginmsg" class="muted err"></span></div>
+</form>
+
+<div id="editor" hidden>
+<h1>Modifier les textes de l'accueil</h1>
+<p class="muted">Modifiez les champs puis cliquez sur « Enregistrer ». Les changements apparaissent sur le site en quelques secondes. <a href="/" target="_blank" rel="noopener">Voir le site</a></p>
+<p class="tip">Astuces : entourez un mot de <b>*étoiles*</b> pour le mettre en italique vert. Un retour à la ligne dans un champ crée un saut de ligne sur le site. Videz un champ puis enregistrez pour revenir au texte d'origine.</p>
+<div id="fields"></div>
+</div>
+
+</div>
+
+<div class="bar" id="bar" hidden>
+<div class="box">
+<span id="msg" class="muted" role="status"></span>
+<div class="row"><button class="ghost" id="logout" type="button">Se déconnecter</button><button id="save" type="button" disabled>Enregistrer</button></div>
+</div>
+</div>
+
+<script>
+(function(){
+  var SECTIONS={hero:'Haut de page',terre:'Galerie photos',presentation:'Présentation',fonctionnement:'Comment ça fonctionne',benefices:'Bénéfices',forum:'Bandeau forum',final:'Appel final'};
+  var password='',fields=[],current={},defaults={};
+  var $=function(id){return document.getElementById(id)};
+
+  function toMarkup(el){ // contenu HTML d'origine -> mini-balisage
+    var out='';
+    el.childNodes.forEach(function(n){
+      if(n.nodeType===3) out+=n.textContent;
+      else if(n.nodeName==='EM') out+='*'+n.textContent+'*';
+      else if(n.nodeName==='BR') out+='\n';
+    });
+    return out;
+  }
+  function kind(el){
+    if(el.classList.contains('eyebrow')) return 'Accroche';
+    return {H1:'Titre principal',H2:'Titre',H3:'Sous-titre',P:'Texte'}[el.tagName]||'Texte';
+  }
+  function loadFields(){
+    return fetch('/',{cache:'no-store'}).then(function(r){return r.text()}).then(function(html){
+      var doc=new DOMParser().parseFromString(html,'text/html');
+      fields=[];
+      doc.querySelectorAll('[data-edit]').forEach(function(el){
+        var key=el.getAttribute('data-edit');
+        var sec=el.closest('section');
+        var sid=key.split('.')[0];
+        defaults[key]=toMarkup(el);
+        fields.push({key:key,sec:sid,label:kind(el)});
+      });
+    });
+  }
+  function loadCurrent(){
+    return fetch('/api/content',{cache:'no-store'}).then(function(r){return r.ok?r.json():{}}).catch(function(){return {}}).then(function(d){current=d});
+  }
+  function value(key){return current[key]||defaults[key]||''}
+  function build(){
+    var host=$('fields');host.innerHTML='';
+    var last='';
+    fields.forEach(function(f){
+      if(f.sec!==last){var h=document.createElement('h2');h.textContent=SECTIONS[f.sec]||f.sec;host.appendChild(h);last=f.sec}
+      var wrap=document.createElement('div');wrap.className='field';
+      var l=document.createElement('label');l.textContent=f.label;l.htmlFor='f-'+f.key;
+      var t=document.createElement('textarea');t.id='f-'+f.key;t.dataset.key=f.key;t.value=value(f.key);t.placeholder=defaults[f.key];
+      t.addEventListener('input',function(){autosize(t);mark(t)});
+      wrap.appendChild(l);wrap.appendChild(t);host.appendChild(wrap);
+      autosize(t);
+    });
+  }
+  function autosize(t){t.style.height='auto';t.style.height=(t.scrollHeight+2)+'px'}
+  function dirty(){
+    var changes={};
+    document.querySelectorAll('textarea[data-key]').forEach(function(t){
+      var k=t.dataset.key,v=t.value.trim();
+      var before=current[k]||'';
+      var normalized=(v===defaults[k])?'':v; // identique à l'original => pas d'override
+      if(normalized!==before) changes[k]=normalized;
+    });
+    return changes;
+  }
+  function mark(t){
+    var k=t.dataset.key,v=t.value.trim(),n=(v===defaults[k])?'':v;
+    t.parentNode.classList.toggle('changed',n!==(current[k]||''));
+    $('save').disabled=Object.keys(dirty()).length===0;
+    say('');
+  }
+  function say(m,err){var e=$('msg');e.textContent=m;e.className=err?'err':'muted'}
+
+  function show(){
+    $('login').hidden=true;$('editor').hidden=false;$('bar').hidden=false;
+    return Promise.all([loadFields(),loadCurrent()]).then(build);
+  }
+  function post(changes){
+    return fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+password},body:JSON.stringify({changes:changes})})
+      .then(function(r){return r.json().catch(function(){return {}}).then(function(j){return {status:r.status,body:j}})});
+  }
+
+  $('login').addEventListener('submit',function(e){
+    e.preventDefault();
+    password=$('pw').value;$('loginmsg').textContent='Vérification…';
+    post({}).then(function(r){
+      if(r.status===200){try{sessionStorage.setItem('gaia-edit',password)}catch(_){}$('loginmsg').textContent='';show()}
+      else{$('loginmsg').textContent=r.body.error||'Erreur.';password=''}
+    }).catch(function(){$('loginmsg').textContent='Réseau indisponible.'});
+  });
+  $('save').addEventListener('click',function(){
+    var ch=dirty();if(!Object.keys(ch).length)return;
+    $('save').disabled=true;say('Enregistrement…');
+    post(ch).then(function(r){
+      if(r.status===200){
+        Object.keys(ch).forEach(function(k){if(ch[k]==='')delete current[k];else current[k]=ch[k]});
+        document.querySelectorAll('.field.changed').forEach(function(w){w.classList.remove('changed')});
+        say('Enregistré. Visible sur le site dans quelques secondes.');
+      }else{say(r.body.error||'Erreur.',true);$('save').disabled=false}
+    }).catch(function(){say('Réseau indisponible.',true);$('save').disabled=false});
+  });
+  $('logout').addEventListener('click',function(){try{sessionStorage.removeItem('gaia-edit')}catch(_){}location.reload()});
+  window.addEventListener('beforeunload',function(e){if($('save')&&!$('save').disabled&&!$('editor').hidden){e.preventDefault();e.returnValue=''}});
+
+  try{var p=sessionStorage.getItem('gaia-edit');if(p){password=p;post({}).then(function(r){if(r.status===200)show();else{password='';sessionStorage.removeItem('gaia-edit')}})}}catch(_){}
+})();
+</script>
+</body>
+</html>
