@@ -1,0 +1,26 @@
+:root{--bg:#f4f1ea;--ink:#1f2d24;--muted:#5b6b60;--accent:#3f6b4f}
+@media (prefers-color-scheme:dark){:root{--bg:#141a16;--ink:#eef1ec;--muted:#a3b0a6;--accent:#8fbf9c}}
+*{box-sizing:border-box;margin:0}
+body{min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--ink);font-family:Georgia,'Times New Roman',serif;text-align:center}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+/* Navigation principale */
+.site-header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 24px;padding:16px 24px;border-bottom:1px solid color-mix(in srgb,var(--accent) 25%,transparent)}
+.brand{font-size:1.15rem;letter-spacing:.01em;text-decoration:none}
+.nav{display:flex;gap:4px;list-style:none;padding:0;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:1rem}
+.nav a{display:block;padding:10px 14px;color:var(--muted);text-decoration:none;border-bottom:1px solid transparent}
+.nav a:hover{color:var(--ink)}
+.nav a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+@media (max-width:480px){.site-header{justify-content:center;padding:12px 16px}}
+
+/* Contenu */
+.page{flex:1;display:grid;place-items:center;padding:24px}
+main{max-width:560px}
+.mark{width:56px;height:56px;margin:0 auto 28px;border-radius:50%;border:2px solid var(--accent);position:relative}
+.mark::after{content:'';position:absolute;inset:12px;border-radius:50%;background:var(--accent);opacity:.8}
+h1{font-weight:400;font-size:clamp(2rem,6vw,3rem);letter-spacing:.01em;margin-bottom:12px}
+p{color:var(--muted);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:1.05rem;line-height:1.6}
+.line{width:48px;height:1px;background:var(--accent);margin:24px auto}
+.badge{display:inline-block;margin-bottom:20px;padding:6px 16px;border:1px solid var(--accent);border-radius:999px;color:var(--accent);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:.8rem;letter-spacing:.12em;text-transform:uppercase}
+.icon{display:block;width:72px;height:72px;margin:0 auto 24px;color:var(--accent)}
